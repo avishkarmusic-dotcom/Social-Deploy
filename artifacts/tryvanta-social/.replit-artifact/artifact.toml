@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Tryvanta Social"
+description = "An AI social operating system that brings messages from multiple channels into one opportunity-ranked inbox, with AI replies, content studio, CRM, automations, analytics, and campaign tools."
+version = "1.0.0"
+id = "artifacts/tryvanta-social"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22195
+
+[services.development]
+run = "pnpm --filter @workspace/tryvanta-social run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/tryvanta-social", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/tryvanta-social/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22195"
+BASE_PATH = "/"

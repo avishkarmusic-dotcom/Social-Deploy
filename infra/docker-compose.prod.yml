@@ -1,0 +1,124 @@
+# Production Docker Compose — Tryvanta Social
+# This file is for server deployment. Use docker-compose.yml for local dev.
+
+name: tryvanta-prod
+
+services:
+  traefik:
+    image: traefik:v3.2
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.le.acme.httpchallenge=true"
+      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.le.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
+      - "--metrics.prometheus=true"
+      - "--accesslog=true"
+      - "--log.level=WARN"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - le_certs:/letsencrypt
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: tryvanta_social
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      retries: 10
+    restart: always
+    # No ports exposed — database is internal only
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redisdata:/data
+    restart: always
+
+  migrate:
+    image: ghcr.io/${REPO}/api:${VERSION}
+    env_file: [.env.prod]
+    depends_on:
+      db: {condition: service_healthy}
+    command: alembic upgrade head
+    restart: "no"
+
+  api:
+    image: ghcr.io/${REPO}/api:${VERSION}
+    env_file: [.env.prod]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+      migrate: {condition: service_completed_successfully}
+    deploy:
+      replicas: 2
+      update_config: {parallelism: 1, delay: 30s, failure_action: rollback}
+      restart_policy: {condition: on-failure, max_attempts: 3}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`${DOMAIN}`) && PathPrefix(`/v1`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls.certresolver=le"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
+      - "traefik.http.routers.api.middlewares=rate@docker"
+      - "traefik.http.middlewares.rate.ratelimit.average=200"
+      - "traefik.http.middlewares.rate.ratelimit.burst=50"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  worker:
+    image: ghcr.io/${REPO}/api:${VERSION}
+    env_file: [.env.prod]
+    depends_on: [db, redis]
+    command: arq app.workers.ingest.WorkerSettings
+    deploy:
+      replicas: 3
+      restart_policy: {condition: on-failure, max_attempts: 5}
+
+  web:
+    image: ghcr.io/${REPO}/web:${VERSION}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.web.entrypoints=websecure"
+      - "traefik.http.routers.web.tls.certresolver=le"
+
+  prometheus:
+    image: prom/prometheus:v3.0.0
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alerts.yml:/etc/prometheus/alerts.yml:ro
+      - promdata:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=30d"
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafdata:/var/lib/grafana
+
+volumes:
+  pgdata: {}
+  redisdata: {}
+  le_certs: {}
+  promdata: {}
+  grafdata: {}

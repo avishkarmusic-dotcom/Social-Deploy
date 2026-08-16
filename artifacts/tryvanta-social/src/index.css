@@ -1,0 +1,41 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap");
+@import "tailwindcss";
+
+:root {
+  --ink: 8 9 12;
+  --panel: 13 16 22;
+  --raise: 23 28 37;
+  --line: 30 37 48;
+  --line-soft: 22 28 36;
+  --paper: 233 237 243;
+  --quiet: 152 162 179;
+  --faint: 93 104 121;
+  --mint: 79 227 176;
+  --iris: 139 124 255;
+  --ember: 255 122 89;
+  --amber: 245 195 107;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+html { background: rgb(var(--ink)); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-width: 320px; background: rgb(var(--ink)); color: rgb(var(--paper)); font-family: var(--font-sans); }
+button, input, textarea, select { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+::selection { background: rgb(var(--iris) / .35); color: rgb(var(--paper)); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgb(var(--line)); border-radius: 999px; }
+::-webkit-scrollbar-track { background: transparent; }
+:focus-visible { outline: 2px solid rgb(var(--iris)); outline-offset: 2px; }
+.font-mono { font-family: var(--font-mono); }
+.text-micro { font-size: .625rem; line-height: .875rem; letter-spacing: .08em; text-transform: uppercase; }
+.tabular { font-variant-numeric: tabular-nums; }
+.glow { background: rgb(var(--iris) / .14); }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes fill { from { height: 0%; } }
+.animate-rise { animation: rise 420ms cubic-bezier(.2,.7,.3,1) both; }
+.animate-fill { animation: fill 600ms cubic-bezier(.2,.7,.3,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

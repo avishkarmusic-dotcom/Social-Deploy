@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Design system — Tryvanta Social
+
+  The thesis: machines speak in mono, humans speak in sans. Every score,
+  channel label, timestamp and category is set in the monospace face; every
+  subject line, message body and drafted reply is set in the sans face. You can
+  tell at a glance which parts of the screen a model produced and which parts a
+  person wrote, without a single "AI generated" badge.
+
+  Colour carries meaning, never decoration. Three accents, one job each:
+    mint  — opportunity, value, things worth your morning
+    ember — urgency, something decaying, something public and angry
+    iris  — the AI is speaking
+  Everything else is greyscale, deliberately. On a screen where a number
+  decides what you do next, a stray accent colour is a lie.
+*/
+
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.dark {
+  --ink: 8 9 12;
+  --panel: 13 16 22;
+  --raise: 23 28 37;
+  --line: 30 37 48;
+  --line-soft: 22 28 36;
+  --paper: 233 237 243;
+  --quiet: 152 162 179;
+  --faint: 93 104 121;
+  --mint: 79 227 176;
+  --iris: 139 124 255;
+  --ember: 255 122 89;
+  --amber: 245 195 107;
+  --glow: 139 124 255 / 0.14;
+}
+
+.light {
+  --ink: 246 247 250;
+  --panel: 255 255 255;
+  --raise: 255 255 255;
+  --line: 227 231 238;
+  --line-soft: 237 240 245;
+  --paper: 12 16 22;
+  --quiet: 90 100 116;
+  --faint: 138 148 163;
+  --mint: 14 156 116;
+  --iris: 99 80 224;
+  --ember: 222 79 44;
+  --amber: 182 127 28;
+  --glow: 99 80 224 / 0.10;
+}
+
+@layer base {
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    @apply bg-ink text-paper font-sans;
+    font-feature-settings: "cv02", "cv03", "cv04";
+  }
+  /* Keyboard focus stays visible everywhere. Non-negotiable. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-iris ring-offset-2;
+    --tw-ring-offset-color: rgb(var(--ink));
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { @apply bg-line rounded; }
+  ::-webkit-scrollbar-track { background: transparent; }
+}
+
+@layer components {
+  /* Numbers must never shift width as they tick. */
+  .tabular { font-variant-numeric: tabular-nums; }
+  .glow { background: rgb(var(--glow)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

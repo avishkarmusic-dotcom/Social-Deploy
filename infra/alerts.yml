@@ -1,0 +1,79 @@
+groups:
+  - name: tryvanta_slo
+    rules:
+
+      # The one that matters most: inbox latency.
+      # If p95 GET /v1/inbox exceeds 300ms, something is wrong.
+      - alert: InboxLatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket{
+              handler="/v1/inbox", method="GET"
+            }[5m])
+          ) > 0.3
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Inbox p95 latency is over 300ms"
+          description: "Users are waiting {{ $value | humanizeDuration }} to see their inbox. Check query plans."
+
+      # Classification lag: inbound to scored should be under 60 seconds.
+      # Over 120 seconds and the inbox feels stale.
+      - alert: ClassificationLag
+        expr: |
+          rate(arq_job_duration_seconds_sum{function="score_object"}[5m])
+          / rate(arq_job_duration_seconds_count{function="score_object"}[5m]) > 120
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "AI classification is lagging over 2 minutes"
+          description: "Check AI provider health. Groq / Anthropic may be degraded."
+
+      # Channel sync errors — a single provider outage looks like the product
+      # is broken to users of that channel. Alert per kind, not in aggregate.
+      - alert: ChannelSyncErrors
+        expr: |
+          rate(arq_job_failures_total{function="sync_account"}[15m]) > 0.1
+        for: 15m
+        labels: {severity: warning}
+        annotations:
+          summary: "High sync failure rate on channel {{ $labels.source_kind }}"
+          description: "May be a token expiry wave. Check source account statuses."
+
+      # AI spend approaching daily budget
+      - alert: AISpendHigh
+        expr: sum(tryvanta_ai_cost_usd_today) > 20
+        for: 0m
+        labels: {severity: info}
+        annotations:
+          summary: "Daily AI spend is over $20"
+          description: "At ${{ $value }}. Daily limit is $25."
+
+      # Worker queue depth — if the queue is deep, objects are waiting to be scored
+      - alert: WorkerQueueDeep
+        expr: arq_queue_length > 500
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Worker queue has {{ $value }} pending jobs"
+          description: "Consider scaling worker replicas."
+
+      # API error rate
+      - alert: APIErrorRateHigh
+        expr: |
+          rate(http_requests_total{status=~"5.."}[5m])
+          / rate(http_requests_total[5m]) > 0.02
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "API error rate is {{ $value | humanizePercentage }}"
+          description: "More than 2% of requests are returning 5xx errors."
+
+      # Database connection exhaustion
+      - alert: DBConnectionsHigh
+        expr: pg_stat_activity_count > 80
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Postgres has {{ $value }} active connections"
+          description: "Pool is near exhaustion. Consider adding read replicas."
